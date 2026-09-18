@@ -1,0 +1,13 @@
+torch>=2.2
+torchaudio>=2.2
+transformers>=4.45
+datasets[audio]>=4.0
+accelerate>=0.34
+speechbrain>=1.0
+librosa>=0.10.2
+soundfile>=0.12
+jiwer>=3.0
+pandas>=2.0
+numpy>=1.26
+scipy>=1.11
+matplotlib>=3.8
