@@ -49,23 +49,23 @@ def analyze(path: Path):
     ranking = ranking.reset_index()
     ranking.to_csv(path.with_name("case_ranking.csv"), index=False)
     selections = [
-        ("降调 WER 增幅最大", ranking.sort_values(["delta_minus3", "utterance_id"], ascending=[False, True]).iloc[0]),
-        ("升调 WER 增幅最大", ranking.sort_values(["delta_plus3", "utterance_id"], ascending=[False, True]).iloc[0]),
-        ("两种变调的 WER 变化最小", ranking.sort_values(["max_absolute_delta", "utterance_id"]).iloc[0]),
+        ("Largest WER increase after downward shifting", ranking.sort_values(["delta_minus3", "utterance_id"], ascending=[False, True]).iloc[0]),
+        ("Largest WER increase after upward shifting", ranking.sort_values(["delta_plus3", "utterance_id"], ascending=[False, True]).iloc[0]),
+        ("Smallest WER change across both directions", ranking.sort_values(["max_absolute_delta", "utterance_id"]).iloc[0]),
     ]
-    lines = ["# 识别错误案例分析", "", "人工试听反馈另见 listening_notes.md（如已记录），独立保存以避免被本报告覆盖。", "", f"评分规则：`{SCORING_RULE}`。从现有 CSV 重新评分，没有重新推理。",
-             "", "按每句标准化 WER 相对该句原始音频的变化选例：降调/升调分别取增幅最大；",
-             "稳定案例取两种变调的绝对变化中的最大值最小者。并列按音频 ID 字典序选取。",
-             "同一句可以符合多个规则，不为凑不同案例改变选取标准。完整排序指标见 case_ranking.csv。",
-             "", "标记：`[替换: 参考 → 识别]`、`[删除: 参考]`、`[插入: 识别]`。",
-             "词级对齐为 jiwer 给出的一种最小编辑对齐；有多个等价对齐时并非唯一解释。",
-             "本报告只说明文本差异；没有进行人工试听，也不把替换类型当成声学原因。", ""]
+    lines = ["# Recognition Error Case Analysis", "", "Listener feedback, when available, is stored separately in listening_notes.md so regeneration does not overwrite it.", "", f"Scoring rule: `{SCORING_RULE}`. Existing CSV transcripts were rescored without rerunning inference.",
+             "", "Cases use normalized utterance WER changes relative to the same utterance's original audio: the largest increase for each pitch direction;",
+             "the stable case minimizes the maximum absolute change across both directions. Ties are resolved by lexicographic utterance ID order.",
+             "One utterance may satisfy multiple rules; criteria are not changed to force distinct cases. All ranking values are in case_ranking.csv.",
+             "", "Notation: `[Substitution: reference → hypothesis]`, `[Deletion: reference]`, `[Insertion: hypothesis]`.",
+             "Word alignments are one minimum-edit alignment returned by jiwer; equally valid alternative alignments may exist.",
+             "This automated report describes text differences only. Listening observations are recorded separately; edit types do not establish acoustic causes.", ""]
     for title, selected in selections:
         uid = selected.utterance_id
         group = data[data.utterance_id == uid].set_index("condition")
-        lines += [f"## {title}：{uid}", "", f"说话人：{group.iloc[0].speaker_id}。",
-                  f"降调变化：{selected.delta_minus3*100:+.2f} 个百分点；升调变化：{selected.delta_plus3*100:+.2f} 个百分点。", "",
-                  "参考文本（标准化后）：", "", normalize_for_scoring(group.iloc[0].reference), ""]
+        lines += [f"## {title}: {uid}", "", f"Speaker: {group.iloc[0].speaker_id}.",
+                  f"Downward-shift change: {selected.delta_minus3*100:+.2f} percentage points; upward-shift change: {selected.delta_plus3*100:+.2f} percentage points.", "",
+                  "Reference text (normalized):", "", normalize_for_scoring(group.iloc[0].reference), ""]
         for condition in ("original", "pitch_-3", "pitch_+3"):
             row = group.loc[condition]
             ref, hyp = normalize_for_scoring(row.reference), normalize_for_scoring(row.transcript)
@@ -75,13 +75,13 @@ def analyze(path: Path):
                 r = " ".join(result.references[0][chunk.ref_start_idx:chunk.ref_end_idx])
                 h = " ".join(result.hypotheses[0][chunk.hyp_start_idx:chunk.hyp_end_idx])
                 marked.append(h if chunk.type == "equal" else
-                              f"[替换: {r} → {h}]" if chunk.type == "substitute" else
-                              f"[删除: {r}]" if chunk.type == "delete" else f"[插入: {h}]")
-            lines += [f"### {condition}", "", f"WER：{result.wer:.2%}；替换 {result.substitutions}、删除 {result.deletions}、插入 {result.insertions}。",
-                      "", "识别文本：", "", hyp, "", "对齐标记：", "", " ".join(marked), ""]
+                              f"[Substitution: {r} → {h}]" if chunk.type == "substitute" else
+                              f"[Deletion: {r}]" if chunk.type == "delete" else f"[Insertion: {h}]")
+            lines += [f"### {condition}", "", f"WER: {result.wer:.2%}; substitutions: {result.substitutions}, deletions: {result.deletions}, insertions: {result.insertions}.",
+                      "", "Recognized text:", "", hyp, "", "Annotated alignment:", "", " ".join(marked), ""]
             audio = path.parent / "audio" / f"{uid}_{condition}.wav"
             if audio.exists():
-                lines += [f"[试听音频](audio/{audio.name})", ""]
+                lines += [f"[Listen to audio](audio/{audio.name})", ""]
     path.with_name("error_analysis.md").write_text("\n".join(lines), encoding="utf-8")
     return totals
 

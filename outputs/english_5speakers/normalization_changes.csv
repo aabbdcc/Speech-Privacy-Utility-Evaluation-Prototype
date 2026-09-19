@@ -1,0 +1,1 @@
+utterance_id,speaker_id,condition,reference,transcript,wer,speaker_cosine_to_original,scoring_rule,reference_normalized,transcript_normalized,wer_normalized,wer_change
